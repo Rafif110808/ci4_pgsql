@@ -12,6 +12,9 @@ class UserController extends Controller {
     // Mempermudah pemanggilan Model.
     public function __construct() {
         $this->userModel = new UserModel();
+        
+        // Load helper untuk form validation
+        helper(['form', 'url']);
     }
 
     // Menampilkan halaman utama
@@ -21,49 +24,184 @@ class UserController extends Controller {
 
     // Mengambil data untuk tabel (dengan search)
     public function fetch() {
-        $search = $this->request->getGet('search'); // ambil keyword dari AJAX
+        try {
+            $search = $this->request->getGet('search'); // ambil keyword dari AJAX
 
-        // Jika ada search, panggil method search di Model
-        if($search){
-            $data = $this->userModel->searchUsers($search);
-        } else {
-            $data = $this->userModel->getAllUsers();
+            // Jika ada search, panggil method search di Model
+            if($search && trim($search) !== ''){
+                $data = $this->userModel->searchUsers($search);
+            } else {
+                $data = $this->userModel->getAllUsers();
+            }
+
+            // Return data dengan header JSON
+            return $this->response
+                        ->setJSON($data)
+                        ->setStatusCode(200);
+                        
+        } catch (\Exception $e) {
+            return $this->response
+                        ->setJSON(['error' => $e->getMessage()])
+                        ->setStatusCode(500);
         }
-
-        return $this->response->setJSON($data);
     }
 
     // Menyimpan data baru
     public function store() {
-        $this->userModel->insert([
-            'name' => $this->request->getPost('name'),
-            'email' => $this->request->getPost('email')
-        ]);
+        try {
+            // Validasi input
+            $validation = \Config\Services::validation();
+            
+            $validation->setRules([
+                'name' => 'required|min_length[3]|max_length[100]',
+                'email' => 'required|valid_email|is_unique[users.email]'
+            ]);
 
-        return $this->response->setJSON(['status' => 'success']);
+            if (!$validation->withRequest($this->request)->run()) {
+                return $this->response
+                            ->setJSON([
+                                'status' => 'error',
+                                'message' => $validation->getErrors()
+                            ])
+                            ->setStatusCode(400);
+            }
+
+            // Insert data
+            $this->userModel->insert([
+                'name' => $this->request->getPost('name'),
+                'email' => $this->request->getPost('email')
+            ]);
+
+            return $this->response
+                        ->setJSON([
+                            'status' => 'success',
+                            'message' => 'Data saved successfully'
+                        ])
+                        ->setStatusCode(201);
+                        
+        } catch (\Exception $e) {
+            return $this->response
+                        ->setJSON([
+                            'status' => 'error',
+                            'message' => $e->getMessage()
+                        ])
+                        ->setStatusCode(500);
+        }
     }
 
     // Mengambil data user berdasarkan ID untuk edit
     public function edit($id) {
-        return $this->response->setJSON(
-            $this->userModel->find($id)
-        );
+        try {
+            $user = $this->userModel->find($id);
+            
+            if (!$user) {
+                return $this->response
+                            ->setJSON([
+                                'status' => 'error',
+                                'message' => 'User not found'
+                            ])
+                            ->setStatusCode(404);
+            }
+
+            return $this->response
+                        ->setJSON($user)
+                        ->setStatusCode(200);
+                        
+        } catch (\Exception $e) {
+            return $this->response
+                        ->setJSON([
+                            'status' => 'error',
+                            'message' => $e->getMessage()
+                        ])
+                        ->setStatusCode(500);
+        }
     }
 
     // Mengupdate data tertentu
     public function update($id) {
-        $this->userModel->update($id, [
-            'name' => $this->request->getPost('name'),
-            'email' => $this->request->getPost('email')
-        ]);
+        try {
+            // Cek apakah user ada
+            $user = $this->userModel->find($id);
+            if (!$user) {
+                return $this->response
+                            ->setJSON([
+                                'status' => 'error',
+                                'message' => 'User not found'
+                            ])
+                            ->setStatusCode(404);
+            }
 
-        return $this->response->setJSON(['status' => 'success']);
+            // Validasi input
+            $validation = \Config\Services::validation();
+            
+            $validation->setRules([
+                'name' => 'required|min_length[3]|max_length[100]',
+                'email' => "required|valid_email|is_unique[users.email,id,{$id}]"
+            ]);
+
+            if (!$validation->withRequest($this->request)->run()) {
+                return $this->response
+                            ->setJSON([
+                                'status' => 'error',
+                                'message' => $validation->getErrors()
+                            ])
+                            ->setStatusCode(400);
+            }
+
+            // Update data
+            $this->userModel->update($id, [
+                'name' => $this->request->getPost('name'),
+                'email' => $this->request->getPost('email')
+            ]);
+
+            return $this->response
+                        ->setJSON([
+                            'status' => 'success',
+                            'message' => 'Data updated successfully'
+                        ])
+                        ->setStatusCode(200);
+                        
+        } catch (\Exception $e) {
+            return $this->response
+                        ->setJSON([
+                            'status' => 'error',
+                            'message' => $e->getMessage()
+                        ])
+                        ->setStatusCode(500);
+        }
     }
 
     // Menghapus data tertentu
     public function delete($id) {
-        $this->userModel->delete($id);
+        try {
+            // Cek apakah user ada
+            $user = $this->userModel->find($id);
+            if (!$user) {
+                return $this->response
+                            ->setJSON([
+                                'status' => 'error',
+                                'message' => 'User not found'
+                            ])
+                            ->setStatusCode(404);
+            }
 
-        return $this->response->setJSON(['status' => 'success']);
+            // Hapus data
+            $this->userModel->delete($id);
+
+            return $this->response
+                        ->setJSON([
+                            'status' => 'success',
+                            'message' => 'Data deleted successfully'
+                        ])
+                        ->setStatusCode(200);
+                        
+        } catch (\Exception $e) {
+            return $this->response
+                        ->setJSON([
+                            'status' => 'error',
+                            'message' => $e->getMessage()
+                        ])
+                        ->setStatusCode(500);
+        }
     }
 }

@@ -50,29 +50,45 @@
 
 
 <script>
-// Mengambil data dari controller
-function fetchUsers(query='') {
-    $.get("<?= site_url('user/fetch') ?>", {search: query}, function(data) {
-        let rows = '';
+// Mengambil data dari controller menggunakan $.ajax()
+function fetchUsers(query = '') {
+    $.ajax({
+        url: "<?= site_url('user/fetch') ?>",
+        type: "GET",
+        data: {
+            search: query
+        },
+        dataType: "json",
+        success: function(data) {
+            let rows = '';
 
-        // Isi tabel
-        data.forEach(function(user) {
-            rows += `<tr>
-                        <td>${user.id}</td>
-                        <td>${user.name}</td>
-                        <td>${user.email}</td>
-                        <td>
-                            <button class="btn btn-warning btn-sm me-1" onclick="editUser(${user.id})">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>
-                        </td>
-                     </tr>`;
-        });
+            // Isi tabel
+            if (data.length > 0) {
+                data.forEach(function(user) {
+                    rows += `<tr>
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>
+                                    <button class="btn btn-warning btn-sm me-1" onclick="editUser(${user.id})">Edit</button>
+                                    <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>
+                                </td>
+                             </tr>`;
+                });
+            } else {
+                rows = `<tr><td colspan="4" class="text-center">No data found</td></tr>`;
+            }
 
-        $('#userTable tbody').html(rows);
+            $('#userTable tbody').html(rows);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error fetching users:', error);
+            alert('Error loading data');
+        }
     });
 }
 
-// Simpan atau update
+// Simpan atau update menggunakan $.ajax()
 $('#userForm').submit(function(e) {
     e.preventDefault();
 
@@ -81,34 +97,92 @@ $('#userForm').submit(function(e) {
         ? "<?= site_url('user/update') ?>/" + id 
         : "<?= site_url('user/store') ?>";
 
-    $.post(url, $(this).serialize(), function() {
-        $('#userForm')[0].reset();
-        $('#user_id').val('');
-        fetchUsers($('#search').val());
+    $.ajax({
+        url: url,
+        type: "POST",
+        data: {
+            name: $('#name').val(),
+            email: $('#email').val()
+        },
+        dataType: "json",
+        success: function(result) {
+            console.log('Response:', result); // Debug
+            
+            if (result.status === 'success') {
+                // Reset form
+                $('#userForm')[0].reset();
+                $('#user_id').val('');
+                
+                // Reload data
+                fetchUsers($('#search').val());
+                
+                alert(result.message || (id ? 'Data updated successfully' : 'Data saved successfully'));
+            } else {
+                // Tampilkan error
+                let errorMsg = 'Error: ';
+                if (typeof result.message === 'object') {
+                    errorMsg += Object.values(result.message).join(', ');
+                } else {
+                    errorMsg += result.message;
+                }
+                alert(errorMsg);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error saving data:', error);
+            alert('Error saving data. Check console for details.');
+        }
     });
 });
 
-// Ambil data untuk edit
+// Ambil data untuk edit menggunakan $.ajax()
 function editUser(id) {
-    $.get("<?= site_url('user/edit') ?>/" + id, function(data) {
-        $('#user_id').val(data.id); 
-        $('#name').val(data.name);
-        $('#email').val(data.email);
+    $.ajax({
+        url: "<?= site_url('user/edit') ?>/" + id,
+        type: "GET",
+        dataType: "json",
+        success: function(data) {
+            $('#user_id').val(data.id);
+            $('#name').val(data.name);
+            $('#email').val(data.email);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading user data:', error);
+            alert('Error loading user data');
+        }
     });
 }
 
-// Hapus
+// Hapus menggunakan $.ajax()
 function deleteUser(id) {
     if(confirm("Hapus data ini?")) {
-        $.get("<?= site_url('user/delete') ?>/" + id, function() {
-            fetchUsers($('#search').val());
+        $.ajax({
+            url: "<?= site_url('user/delete') ?>/" + id,
+            type: "GET",
+            dataType: "json",
+            success: function(result) {
+                if (result.status === 'success') {
+                    fetchUsers($('#search').val());
+                    alert('Data deleted successfully');
+                } else {
+                    alert(result.message || 'Error deleting data');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error deleting data:', error);
+                alert('Error deleting data');
+            }
         });
     }
 }
 
-// Search realtime
+// Search realtime dengan debounce
+let searchTimeout;
 $('#search').on('input', function() {
-    fetchUsers($(this).val());
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        fetchUsers($(this).val());
+    }, 300); // Delay 300ms untuk mengurangi request
 });
 
 // Load awal
