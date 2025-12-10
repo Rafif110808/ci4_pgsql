@@ -6,56 +6,64 @@ use CodeIgniter\Controller;
 
 class UserController extends Controller {
 
-    // Menampilkan halaman utama CRUD
+    protected $userModel;
+
+    // Konstruktor. Dipanggil otomatis.
+    // Mempermudah pemanggilan Model.
+    public function __construct() {
+        $this->userModel = new UserModel();
+    }
+
+    // Menampilkan halaman utama
     public function index() {
-        return view('user_view'); // memanggil view
+        return view('user_view');
     }
 
-    // Mengambil semua data user, bisa dengan search
+    // Mengambil data untuk tabel (dengan search)
     public function fetch() {
-        $model = new UserModel();
-        $search = $this->request->getGet('search'); // ambil keyword search dari AJAX
+        $search = $this->request->getGet('search'); // ambil keyword dari AJAX
+
+        // Jika ada search, panggil method search di Model
         if($search){
-            // Cari user berdasarkan name atau email yang mirip dengan keyword
-            $data = $model->like('name', $search)
-                          ->orLike('email', $search)
-                          ->findAll();
+            $data = $this->userModel->searchUsers($search);
         } else {
-            $data = $model->findAll(); // ambil semua user
+            $data = $this->userModel->getAllUsers();
         }
-        return $this->response->setJSON($data); // kirim data ke AJAX dalam format JSON
+
+        return $this->response->setJSON($data);
     }
 
-    // Menyimpan data user baru
+    // Menyimpan data baru
     public function store() {
-        $model = new UserModel();
-        $model->insert([
-            'name' => $this->request->getPost('name'), // ambil input name
-            'email' => $this->request->getPost('email') // ambil input email
-        ]);
-        return $this->response->setJSON(['status' => 'success']); // respon sukses ke AJAX
-    }
-
-    // Mengambil data user tertentu untuk edit
-    public function edit($id) {
-        $model = new UserModel();
-        return $this->response->setJSON($model->find($id)); // kirim data user ke AJAX
-    }
-
-    // Mengupdate data user tertentu
-    public function update($id) {
-        $model = new UserModel();
-        $model->update($id, [
+        $this->userModel->insert([
             'name' => $this->request->getPost('name'),
             'email' => $this->request->getPost('email')
         ]);
-        return $this->response->setJSON(['status' => 'success']); // respon sukses
+
+        return $this->response->setJSON(['status' => 'success']);
     }
 
-    // Menghapus data user tertentu
+    // Mengambil data user berdasarkan ID untuk edit
+    public function edit($id) {
+        return $this->response->setJSON(
+            $this->userModel->find($id)
+        );
+    }
+
+    // Mengupdate data tertentu
+    public function update($id) {
+        $this->userModel->update($id, [
+            'name' => $this->request->getPost('name'),
+            'email' => $this->request->getPost('email')
+        ]);
+
+        return $this->response->setJSON(['status' => 'success']);
+    }
+
+    // Menghapus data tertentu
     public function delete($id) {
-        $model = new UserModel();
-        $model->delete($id);
-        return $this->response->setJSON(['status' => 'success']); // respon sukses
+        $this->userModel->delete($id);
+
+        return $this->response->setJSON(['status' => 'success']);
     }
 }

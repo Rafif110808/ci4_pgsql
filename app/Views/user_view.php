@@ -2,19 +2,22 @@
 <html>
 <head>
     <title>CRUD AJAX CI4 + PostgreSQL</title>
-    <!-- Bootstrap CSS -->
+
+    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- jQuery untuk AJAX -->
+
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
+
 <body class="p-4">
 
 <div class="container">
     <h2 class="mb-4">CRUD Users</h2>
 
-    <!-- Form input user -->
+    <!-- Form input -->
     <form id="userForm" class="mb-3">
-        <input type="hidden" id="user_id" name="user_id"> <!-- hidden field untuk ID user -->
+        <input type="hidden" id="user_id" name="user_id">
         <div class="row g-2">
             <div class="col-md-4">
                 <input type="text" id="name" name="name" class="form-control" placeholder="Name" required>
@@ -28,12 +31,10 @@
         </div>
     </form>
 
-    <!-- Search input -->
-    <div class="mb-3">
-        <input type="text" id="search" class="form-control" placeholder="Search by Name or Email">
-    </div>
+    <!-- Search -->
+    <input type="text" id="search" class="form-control mb-3" placeholder="Search by Name or Email">
 
-    <!-- Tabel user -->
+    <!-- Tabel -->
     <table class="table table-bordered table-striped" id="userTable">
         <thead class="table-dark">
             <tr>
@@ -47,62 +48,70 @@
     </table>
 </div>
 
+
 <script>
-// Fungsi untuk menampilkan data user
+// Mengambil data dari controller
 function fetchUsers(query='') {
     $.get("<?= site_url('user/fetch') ?>", {search: query}, function(data) {
         let rows = '';
+
+        // Isi tabel
         data.forEach(function(user) {
             rows += `<tr>
                         <td>${user.id}</td>
                         <td>${user.name}</td>
                         <td>${user.email}</td>
                         <td>
-                            <button class="btn btn-sm btn-warning me-1" onclick="editUser(${user.id})">Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteUser(${user.id})">Delete</button>
+                            <button class="btn btn-warning btn-sm me-1" onclick="editUser(${user.id})">Edit</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUser(${user.id})">Delete</button>
                         </td>
                      </tr>`;
         });
-        $('#userTable tbody').html(rows); // isi tbody dengan data user
+
+        $('#userTable tbody').html(rows);
     });
 }
 
-// Simpan data baru atau update data
+// Simpan atau update
 $('#userForm').submit(function(e) {
     e.preventDefault();
-    let id = $('#user_id').val(); // ambil ID jika edit
-    let url = id ? "<?= site_url('user/update') ?>/" + id : "<?= site_url('user/store') ?>";
+
+    let id = $('#user_id').val();
+    let url = id 
+        ? "<?= site_url('user/update') ?>/" + id 
+        : "<?= site_url('user/store') ?>";
+
     $.post(url, $(this).serialize(), function() {
-        $('#userForm')[0].reset(); // reset form
-        $('#user_id').val(''); // hapus hidden ID
-        fetchUsers($('#search').val()); // refresh tabel, tetap filter search
+        $('#userForm')[0].reset();
+        $('#user_id').val('');
+        fetchUsers($('#search').val());
     });
 });
 
-// Ambil data user untuk edit
+// Ambil data untuk edit
 function editUser(id) {
     $.get("<?= site_url('user/edit') ?>/" + id, function(data) {
-        $('#user_id').val(data.id);
+        $('#user_id').val(data.id); 
         $('#name').val(data.name);
         $('#email').val(data.email);
     });
 }
 
-// Hapus user
+// Hapus
 function deleteUser(id) {
-    if(confirm("Are you sure?")) {
+    if(confirm("Hapus data ini?")) {
         $.get("<?= site_url('user/delete') ?>/" + id, function() {
-            fetchUsers($('#search').val()); // refresh tabel
+            fetchUsers($('#search').val());
         });
     }
 }
 
-// Event search input
+// Search realtime
 $('#search').on('input', function() {
     fetchUsers($(this).val());
 });
 
-// Load data user saat halaman siap
+// Load awal
 $(document).ready(function() {
     fetchUsers();
 });
